@@ -424,3 +424,69 @@ structure IsZipTree (orderLT : α → α → Prop) (rankLE : α → α → Prop)
 -- TODO: treaps
 
 -- TODO: extended stuff
+
+end Tree
+
+-- TODO: use mutual inductive here?
+
+inductive GTree (σ : Type v) : Type v
+| empty : GTree σ
+| node (set : σ) (right : GTree σ) (rank : ℕ)
+
+inductive GTree.IsNode {σ : Type v} : GTree σ → Prop
+| node (set : σ) (right : GTree σ) (rank : ℕ) : GTree.IsNode (GTree.node set right rank)
+
+def GTreeNode (σ : Type v) : Type v := { t : GTree σ // GTree.IsNode t }
+
+def GTreeNode.set {σ : Type v} (t : GTreeNode σ) : σ
+  := match t with | ⟨GTree.node set _ _, _⟩ => set
+
+def GTreeNode.right {σ : Type v} (t : GTreeNode σ) : GTree σ
+  := match t with | ⟨GTree.node _ right _, _⟩ => right
+
+def GTreeNode.rank {σ : Type v} (t : GTreeNode σ) : ℕ
+  := match t with | ⟨GTree.node _ _ rank, _⟩ => rank
+
+-- TODO: drag this over to discretion
+
+def WithEmpty (σ : Type v) : Type v := Option σ
+
+namespace WithEmpty
+
+def empty : WithEmpty σ := none
+
+instance : EmptyCollection (WithEmpty σ) := ⟨empty⟩
+
+instance : Inhabited (WithEmpty σ) := ⟨empty⟩
+
+instance [Membership α σ] : Membership α (WithEmpty σ) where
+  mem
+  | none => λ_ => False
+  | some a => λx => x ∈ a
+
+instance [Union σ] : Union (WithEmpty σ) where
+  union
+  | none, a | a, none => a
+  | some a, some b => some (a ∪ b)
+
+instance [Singleton α σ] : Singleton α (WithEmpty σ) where
+  singleton a := some (singleton a)
+
+end WithEmpty
+
+class NGSet (α : outParam (Type u)) (σ : Type v) where
+  singleton (item : α) (subtree : GTree σ) : σ
+  split (this : σ) (key : α) : WithEmpty σ × Option (GTree σ) × WithEmpty σ
+  join (lo : σ) (hi : σ) : σ
+  remove_min (this : σ) : α × GTree σ × WithEmpty σ
+  insert_min (this : σ) (new_min :  α × GTree σ) : σ
+  search (this : σ) (key : α) : Option (α × GTree σ)
+
+open NGSet
+
+def WithEmpty.insert_min [NGSet α σ] (this : WithEmpty σ) (new_min : α × GTree σ) : σ :=
+  match this with
+  | none => singleton new_min.1 new_min.2
+  | some s => NGSet.insert_min s new_min
+
+namespace GTree
